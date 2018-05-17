@@ -37,8 +37,8 @@ class blockWatchingService {
     this.repo = repo;
     this.events = new EventEmitter();
     this.currentHeight = currentHeight || 0;
-    this.lastBlocks = [];
     this.isSyncing = false;
+    this.lastBlockHash = null;    
 
     this.networkId = '-104';
     this.consensusAmount = '';
@@ -65,7 +65,6 @@ class blockWatchingService {
     
 
     log.info(`caching from block:${this.currentHeight} for network:${this.networkId}`);
-    this.lastBlocks = [];
     this.doJob();
     await this.listener.start();
     await this.listener.onMessage( tx => this.UnconfirmedTxEvent(tx));
@@ -87,8 +86,7 @@ class blockWatchingService {
         });
 
         this.currentHeight++;
-        _.pullAt(this.lastBlocks, 0);
-        this.lastBlocks.push(blockWithTxsFromDb.number);
+        this.lastBlockHash = blockWithTxsFromDb.hash;
         this.events.emit('block', blockWithTxsFromDb);
       } catch (err) {
 
@@ -104,9 +102,9 @@ class blockWatchingService {
         }
 
         if ([1, 11000].includes(_.get(err, 'code'))) {
-          const currentBlocks = await this.repo.findLastBlocks();
-          this.lastBlocks = _.chain(currentBlocks).map(block => block.number).reverse().value();
-          this.currentHeight = _.get(currentBlocks, '0.number', 0);
+          const prevBlock = await this.repo.findPrevBlock(this.currentHeight);
+          this.lastBlockHash = prevBlock.hash;
+          this.currentHeight = prevBlock.number;
           continue;
         }
 
@@ -142,14 +140,11 @@ class blockWatchingService {
       return Promise.reject({code: 0});
     
 
-    const lastBlocks = await this.requests.getBlocksByNumbers(this.lastBlocks);
-    const lastBlockHashes = _.chain(lastBlocks).map(block => _.get(block, 'hash')).compact().value();
-    
-    let savedBlocks = await this.repo.findBlocksByHashes(lastBlockHashes);
-    savedBlocks = _.chain(savedBlocks).map(block => block.number).orderBy().value();
-    if (savedBlocks.length !== this.lastBlocks.length) 
-      return Promise.reject({code: 1});
-    
+    if (this.lastBlockHash !== null) {
+      const lastBlock = await this.requests.getBlockByNumber(this.currentHeight);
+      if (lastBlock.hash !== this.lastBlockHash)
+        return Promise.reject({code: 1});
+    }
 
     return _.merge(this.repo.createBlock(block), {
       transactions: await this.repo.createTransactions(block.transactions),

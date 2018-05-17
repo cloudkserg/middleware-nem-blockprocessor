@@ -11,7 +11,6 @@ const httpProxy = require('http-proxy'),
 
 // create a server
 const provider = config.node.providers[2];
-
 if (!process.argv[2] || !process.argv[3]) {
   log.error('not set argument 2 as port for proxy/server.js');
   process.exit(0);
