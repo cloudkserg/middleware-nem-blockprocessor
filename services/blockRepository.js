@@ -197,11 +197,17 @@ const findLastBlockNumber = async () => {
 
 /**
  * 
- * @param {Array of Number} blockNumberChunk 
+ * @param {Number} minBlock
+ * @param {Number} maxBlock
  * @return {Promise return Array of blockModel}
  */
-const countBlocksForNumbers = async (blockNumberChunk) => {
-  return await blockModel.count({number: {$in: blockNumberChunk}});
+const countBlocksForNumbers = async (minBlock, maxBlock) => {
+  return await blockModel.count(minBlock === maxBlock ? {number: minBlock} : {
+    $and: [
+      {number: {$gte: minBlock}},
+      {number: {$lte: maxBlock}}
+    ]
+  });
 };
 
 
