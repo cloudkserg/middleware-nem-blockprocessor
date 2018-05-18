@@ -1,8 +1,8 @@
-/** 
-* Copyright 2017–2018, LaborX PTY
-* Licensed under the AGPL Version 3 license.
-* @author Kirill Sergeev <cloudkserg11@gmail.com>
-*/
+/**
+ * Copyright 2017–2018, LaborX PTY
+ * Licensed under the AGPL Version 3 license.
+ * @author Kirill Sergeev <cloudkserg11@gmail.com>
+ */
 const config = require('../config'),
   _ = require('lodash'),
   sem = require('semaphore')(1),
@@ -15,37 +15,6 @@ const config = require('../config'),
   log = bunyan.createLogger({name: 'app.services.blockRepository'});
 
 /**
- * @return {Promise return blockModels}
- */
-const findLastBlocks = async () => {
-  return await blockModel.find({
-    timestamp: {
-      $ne: 0
-    }
-  }).sort({
-    number: -1
-  }).limit(config.consensus.lastBlocksValidateAmount);
-};
-
-
-/**
- * @param {Array of String} hashes
- * @return {Array of blockModel}
- */
-const findBlocksByHashes = async (hashes) => {
-  if (hashes.length === 0) 
-    return [];
-  const blocks = await blockModel.find({
-    hash: {
-      $in: hashes
-    }
-  }, {
-    number: 1
-  });
-  return blocks;
-};
-
-/**
  * @return {Promise}
  */
 const removeUnconfirmedTxs = async () => {
@@ -55,32 +24,69 @@ const removeUnconfirmedTxs = async () => {
 };
 
 /**
- * 
- * @param {blockModel} block 
+ *
+ * @param Array<txModel> txs
  * @return {Promise return [{Object} of tx]}
  */
-const saveUnconfirmedTxs = async (inputTxs) => {
-  const txs = await createTransactions(inputTxs, -1);
-
-  await txModel.insertMany(txs).catch(log.error.bind(log));
-
+const saveUnconfirmedTxs = async (txs) => {
+  txs = txs.map(tx => transformTx(tx, -1));
+  await txModel.insertMany(txs);
   return txs;
 };
 
+const findPrevBlocks = async (depth) => {
+  return await blockModel.find({
+    number: {$gte: 0}
+  }).sort({number: -1}).limit(depth);
+};
+
+
+const isBlockExist = async (hash) => {
+  return (await blockModel.count({hash: hash})) !== 0;
+};
+
+const transformTx = (tx, blockNumber) => {
+
+
+  const sender = !tx.sender && tx.signer ? nem.model.address.toAddress(tx.signer, config.node.network) : tx.sender;
+
+  return {
+    blockNumber: blockNumber,
+    timeStamp: tx.timeStamp,
+    amount: tx.amount || null,
+    hash: hashes.calculateTransactionHash(tx),
+    recipient: tx.recipient,
+    sender: sender,
+    fee: tx.fee,
+    messagePayload: _.get(tx, 'message.payload', null),
+    messageType: _.get(tx, 'message.type', null),
+    mosaics: tx.mosaics || null
+  };
+
+};
 
 /**
- * 
- * @param {blockModel} block 
+ *
+ * @param {blockModel} block
  * @param {Array of Object} txs
- * @return {blockModel} 
+ * @return {blockModel}
  */
-const createBlock = (block, txHashes = []) => {
-  return _.merge(block, {
+const transformRawBlock = (block) => {
+
+  const txs = block.transactions.map(tx => transformTx(tx, block.number));
+
+  return {
     number: block.height,
-    txs: txHashes,
+    timeStamp: block.time || Date.now(),
     hash: hashes.calculateBlockHash(block),
-    timestamp: block.time || Date.now()
-  });
+    type: block.type,
+    signature: block.signature,
+    version: block.version,
+    signer: block.signer,
+    txs: txs,
+    prevBlockHash: block.prevBlockHash.data
+  };
+
 };
 
 /**
@@ -91,112 +97,62 @@ const initModels = async () => {
   await txModel.init();
 };
 
-
-
-/**
- * 
- * @param {Array of blockModel.transaction} txs 
- * @return {Promise return Array of blockModel.transaction}
- */
-const createTransactions = async (txs, blockNumber) => {
-
-  const getSender = (tx) => {
-    if (tx.sender === undefined && tx.signer !== undefined)
-      return nem.model.address.toAddress(tx.signer, config.node.network);
-    return tx.sender;
-  };
-  
-
-
-  return _.map(txs, tx => {
-    const sender = getSender(tx);
-    
-    return _.merge(tx, {
-      sender: sender,
-      blockNumber,
-      hash: tx.signature,
-    });
-  });
-};
-
-
-
-
 /**
  * @param {blockModel} inputBlock
  * @param {Array of txModel} inputTxs
  * @param {function return Promise} afterSave
  * @return {Promise return Object {block merge with transactions}}
- * 
+ *
  **/
-const saveBlock = async (inputBlock, inputTxs, afterSave = () => {}) => {
+const saveBlock = async (block) => {
   return await new Promise(async (res, rej) => {
     sem.take(async () => {
       try {
-        const block = createBlock(inputBlock);
-        const txs = await createTransactions(inputTxs, block.height);
-        block.txs = txs.map(tx => tx.hash);        
+        const savedBlock = await updateDbStateWithBlock(block);
+        res(savedBlock);
+        sem.leave();
 
-        await insertTransactions(txs);
-        await insertBlock(block);
-
-        await afterSave(null);
-        res(_.merge(block, {
-          transactions: txs
-        }));
-        sem.leave();      
-        
       } catch (e) {
-        sem.leave();                
-        await afterSave(e, null);
-        rej(e);
+        await rollbackStateForBlock(block.number);
+        sem.leave();
+        rej({code: 1});
       }
     });
   });
 };
 
 /**
- * 
- * @param {Number} startNumber 
- * @param {Number} limit 
+ *
+ * @param {Number} blockNumber
  * @return {Promise}
  */
-const removeBlocksForNumbers = async (startNumber, limit) => {
-  await blockModel.remove({number: {$gte:  startNumber - limit}}).catch(log.error);
+const rollbackStateForBlock = async (blockNumber) => {
+  log.info(`wrong sync state!, rollback to ${blockNumber} block`);
+  await blockModel.remove({number: {$gte: blockNumber}});
+  await txModel.remove({blockNumber: {$gte: blockNumber}});
+};
+
+const updateDbStateWithBlock = async (block) => {
+
+  let bulkOps = block.txs.map(tx => {
+    return {
+      updateOne: {
+        filter: {hash: tx.hash},
+        update: tx,
+        upsert: true
+      }
+    }
+  });
+
+  if (bulkOps.length)
+    await txModel.bulkWrite(bulkOps);
+
+  const toSaveBlock = _.merge({}, block, {txs: block.txs.map(tx => tx.hash)});
+  return await blockModel.findOneAndUpdate({number: toSaveBlock.number}, toSaveBlock, {upsert: true});
 };
 
 /**
- * 
- * @param {Number} startNumber 
- * @return {Promise}
- */
-const removeTxsForNumbers = async (startNumber, limit) => {
-  await txModel.remove({blockNumber: {$gte:  startNumber - limit}}).catch(log.error);
-};
-
-const insertBlock = async (block) => {
-  await blockModel.findOneAndUpdate({number: block.number}, block, {upsert: true});
-};
-
-const insertTransactions  = async (txs) => {
-  if (txs.length !== 0) {
-    await txModel.remove({
-      hash: {$in: txs.map(tx => tx.hash)}
-    }).catch(log.error);
-
-    await txModel.insertMany(txs).catch(log.error.bind(log));
-  }
-};
-
-/**
- * @return {Promise return Number}
- */
-const findLastBlockNumber = async () => {
-  return await blockModel.findOne({}, {number: 1}, {sort: {number: -1}});
-};
-
-/**
- * 
+ *
  * @param {Number} minBlock
  * @param {Number} maxBlock
  * @return {Promise return Array of blockModel}
@@ -210,23 +166,13 @@ const countBlocksForNumbers = async (minBlock, maxBlock) => {
   });
 };
 
-
 module.exports = {
   initModels,
-  
-  createBlock,
-  createTransactions,
-
-
-  findLastBlocks,
-  findBlocksByHashes,
-  findLastBlockNumber,
   countBlocksForNumbers,
-
   saveBlock,
-  removeBlocksForNumbers,
-  removeTxsForNumbers,
-
-  saveUnconfirmedTxs,   
-  removeUnconfirmedTxs  
+  findPrevBlocks,
+  transformRawBlock,
+  saveUnconfirmedTxs,
+  removeUnconfirmedTxs,
+  isBlockExist
 };

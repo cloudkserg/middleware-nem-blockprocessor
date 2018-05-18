@@ -333,7 +333,7 @@ const calculateBlockHash = (block) => {
 };
 
 const calculateTransactionHash = (transaction) => {
-  return calculateHash(serializeTransaction(transaction));
+  return calculateHash(serializeTransaction(transaction, false));
 };
 
 

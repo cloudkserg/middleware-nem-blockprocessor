@@ -37,7 +37,6 @@ class SyncCacheService {
   async start (consensusAmount) {
     await this.indexCollection();
     let data = await allocateBlockBuckets(this.requests, this.repo, this.startIndex, consensusAmount);
-    
     this.doJob(data.missedBuckets);
     return data.height;
   }
@@ -73,8 +72,7 @@ class SyncCacheService {
   }
 
   async runPeer (bucket) {
-    let lastBlock = await this.requests.getBlockByNumber(_.last(bucket)).catch(() => {});
-    
+    let lastBlock = await this.requests.getBlockByNumber(_.last(bucket));
 
     if (!lastBlock)
       return await Promise.delay(10000);
@@ -87,14 +85,11 @@ class SyncCacheService {
 
     await Promise.mapSeries(blocksToProcess, async (blockNumber) => {
       let block = await this.requests.getBlockByNumber(blockNumber);
-      if (!block || !block.hash) 
-        return Promise.reject('not find block for number=' + blockNumber);
-      
-      const blockWithTxsFromDb = await this.repo.saveBlock(block, block.transactions);
+
+      block = this.repo.transformRawBlock(block);
+      await this.repo.saveBlock(block);
       _.pull(bucket, blockNumber);
-      this.events.emit('block', blockWithTxsFromDb);
-    }).catch((e) => {
-      log.error(e);
+      this.events.emit('block', block);
     });
   }
 }
