@@ -20,7 +20,7 @@ const Block = new mongoose.Schema({
   version: {type: Number},
   signer: {type: String},
   txs: [{type: String}],
-  prevBlockHash: {data: {type: String}}  
+  prevBlockHash: {type: String}
 });
 
 module.exports = mongoose.model(`${config.mongo.data.collectionPrefix}Block`, Block);
