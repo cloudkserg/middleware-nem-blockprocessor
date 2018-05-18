@@ -31,21 +31,6 @@ describe('core/block processor', function () {
     expect(hashes.calculateBlockHash(block)).to.be.equal(exampleHash);
   });
 
-  it('check hash for simple transaction [just fake]',  () => {
-    const transaction = {
-      amount: 123000000,
-      recipient: 'TDYOO3HEHRCCMHRUG6C7INXV7HQP5CB3627EE5QD',
-      fee: 100,
-      version: -1744830463,
-      timeStamp: 0,
-      deadline: 0,
-      signer: 'ddf7105494117d97c7133aff5c1438bf1e2eaca593e42e27e9b0641da76d7298',
-      type: 257,
-      signature: '52ddec57d587d7f0f4e663d5ce654bec540ea75eecb572b0acd9afbe17a7cb5dbe5abde9468759af78729cba4aa5a44925afa530bb4b99c3f97f2bfbd2136b01'
-    };
-    const exampleHash = '8cb136e010b72b8cd57e9add81bf3ce7fba302c531e97cae5d15c3b06ec5304c';
-    expect(hashes.calculateTransactionHash(transaction)).to.be.equal(exampleHash);
-  });
 
   it('check hash for block with type mosaic supply change  [just fake]',  () => {
     const block =  { 
