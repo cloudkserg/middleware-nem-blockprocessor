@@ -114,7 +114,7 @@ const createTransactions = async (txs, blockNumber) => {
     return _.merge(tx, {
       sender: sender,
       blockNumber,
-      hash: tx.signature,
+      hash: hashes.calculateTransactionHash(tx)
     });
   });
 };
