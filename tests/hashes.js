@@ -101,4 +101,14 @@ describe('core/block processor', function () {
       expect(hashes.calculateBlockHash(block)).to.be.equal(blockCompare.prevBlockHash.data);
     });
   });
+
+  it('check transaction hash', async () => {
+    const providerService = new ProviderService(config.node.providers, requests.getHeightForProvider);
+    await providerService.selectProvider();
+    const requestsInstance = requests.createInstance(providerService);
+
+    const block = await requestsInstance.getBlockByNumber(1468878);
+    const tx = block.transactions[0];
+    expect(hashes.calculateTransactionHash(tx)).to.be.equal('a5006fc20e1ef2d1d50177de7982246ea62070af7b8befca765d39c78b169551');
+  });
 });
