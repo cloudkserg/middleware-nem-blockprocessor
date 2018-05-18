@@ -14,7 +14,10 @@ mongoose.accounts = mongoose.createConnection(config.mongo.accounts.uri);
 const saveAccountForAddress = require('./helpers/saveAccountForAddress'),
   connectToQueue = require('./helpers/connectToQueue'),
   clearQueues = require('./helpers/clearQueues'),
+  hashes = require('../services/hashes'),
   _ = require('lodash'),
+  requests = require('../services/nodeRequests'),
+  ProviderService = require('../shared/services/providerService'),
   consumeMessages = require('./helpers/consumeMessages'),
   createTransaction = require('./helpers/createTransaction'),
   consumeStompMessages = require('./helpers/consumeStompMessages'),
@@ -51,6 +54,16 @@ describe('core/block processor', function () {
     expect(block.number).to.be.greaterThan(0);
     const tx = await txModel.findOne({}).sort('-blockNumber');
     expect(tx.blockNumber).to.be.greaterThan(0);
+  });
+
+  it('check transaction hash', async () => {
+    const providerService = new ProviderService(config.node.providers, requests.getHeightForProvider);
+    await providerService.selectProvider();
+    const requestsInstance = requests.createInstance(providerService);
+
+    const block = await requestsInstance.getBlockByNumber(1468909);
+    const tx = block.transactions[3];
+    expect(hashes.calculateTransactionHash(tx)).to.be.equal('9c8dc24db90bd3ba9b06f7a2da321b80f29de4a0f66f12954538227fc6667a12');
   });
 
   it('send some nem from account0 to account1 and validate messages and db', async () => {

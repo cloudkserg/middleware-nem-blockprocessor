@@ -47,6 +47,7 @@ const isBlockExist = async (hash) => {
 
 const transformTx = (tx, blockNumber) => {
 
+  
   const sender = !tx.sender && tx.signer ? nem.model.address.toAddress(tx.signer, config.node.network) : tx.sender;
 
   return {
