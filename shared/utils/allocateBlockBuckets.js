@@ -49,7 +49,7 @@ module.exports = async function (requests, repo) {
   if (currentNodeHeight === -1)
     return Promise.reject({code: 0});
 
-  let missedBuckets = await blockValidator(0, currentNodeHeight - 2, 10000, repo); //todo remove -1000
+  let missedBuckets = await blockValidator(0, currentNodeHeight - 2, 100000, repo);
   missedBuckets = _.chain(missedBuckets).sortBy(item => item[0]).reverse().value();
 
   return {

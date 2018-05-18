@@ -64,7 +64,7 @@ const init = async () => {
 
   let blockEventCallback = async block => {
     log.info(`${block.hash} (${block.number}) added to cache.`);
-    let filtered = await filterTxsByAccountsService(block.transactions);
+    let filtered = await filterTxsByAccountsService(block.txs);
     await Promise.all(filtered.map(item =>
       channel.publish('events', `${config.rabbit.serviceName}_transaction.${item.address}`, new Buffer(JSON.stringify(Object.assign(item))))
     ));
@@ -110,8 +110,6 @@ const init = async () => {
   });
 
   const blockWatchingService = new BlockWatchingService(requestsInstance, listener, blockRepo, endBlock);  
-  blockWatchingService.setNetwork(config.node.network);
-  blockWatchingService.setConsensusAmount(config.consensus.lastBlocksValidateAmount);
   blockWatchingService.events.on('block', blockEventCallback);
   blockWatchingService.events.on('tx', txEventCallback);
 

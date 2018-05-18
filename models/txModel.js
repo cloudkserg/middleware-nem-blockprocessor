@@ -13,29 +13,15 @@ const mongoose = require('mongoose'),
 
 const TX = new mongoose.Schema({
   blockNumber: {type: Number, required: true, index: true, default: -1},
-  timeStamp: {type: Number, required: true, index: true, default: Date.now},  
-  
+  timeStamp: {type: Number, required: true, index: true, default: Date.now},
   amount: {type: Number, index: true},
   hash: {type: String, index: true, unique: true},
-
   recipient: {type: String, index: true},
   sender: {type: String, index: true},
-  
-  nonce: {type: Number},
-  input: {type: String},
-  
-  version: {type: Number},
-  signer: {type: String},
-  signature: {type: String},
   fee: {type: Number},
-  type: {type: String},
-  deadline: {type: Number},
-  newPart: {type: String},
-  rentalFee: {type: String},
-  message: {
-    payload: {type: String},
-    type: {type: Number}
-  },
+  messagePayload: {type: String},
+  messageType: {type: Number},
+
   mosaics: [{
     quantity: {type: Number},
     type: {type: String},      
