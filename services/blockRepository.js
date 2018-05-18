@@ -53,7 +53,7 @@ const transformTx = (tx, blockNumber) => {
     blockNumber: blockNumber,
     timeStamp: tx.timeStamp,
     amount: tx.amount || null,
-    hash: tx.signature,
+    hash: hashes.calculateTransactionHash(tx),
     recipient: tx.recipient,
     sender: sender,
     fee: tx.fee,
@@ -146,8 +146,8 @@ const updateDbStateWithBlock = async (block) => {
   if (bulkOps.length)
     await txModel.bulkWrite(bulkOps);
 
-  block.txs = block.txs.map(tx => tx.hash);
-  return await blockModel.findOneAndUpdate({number: block.number}, block, {upsert: true});
+  const toSaveBlock = _.merge({}, block, {txs: block.txs.map(tx => tx.hash)});
+  return await blockModel.findOneAndUpdate({number: toSaveBlock.number}, toSaveBlock, {upsert: true});
 };
 
 /**

@@ -81,11 +81,7 @@ const createInstance = (providerService) => {
      * @return {Promise return Object}
      */
     async getBlockByNumber (height) {
-      const block = await new Promise(res => {
-        post('block/at/public', {height: (height > 1 ? height : 1)})
-          .then(res)
-          .catch(() => {res({});});
-      }).timeout(10000).catch(()=> {});
+      const block = await Promise.resolve(post('block/at/public', {height: (height > 1 ? height : 1)})).timeout(10000);
 
       if (!block || !block.height) 
         return {};

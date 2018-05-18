@@ -37,7 +37,7 @@ class SyncCacheService {
   async start (consensusAmount) {
     await this.indexCollection();
     let data = await allocateBlockBuckets(this.requests, this.repo, this.startIndex, consensusAmount);
-    this.doJob(data.missedBuckets);
+    //this.doJob(data.missedBuckets);
     return data.height;
   }
 
@@ -72,7 +72,7 @@ class SyncCacheService {
   }
 
   async runPeer (bucket) {
-    let lastBlock = await this.requests.getBlockByNumber(_.last(bucket)).catch(() => {});
+    let lastBlock = await this.requests.getBlockByNumber(_.last(bucket));
 
     if (!lastBlock)
       return await Promise.delay(10000);

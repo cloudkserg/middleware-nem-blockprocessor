@@ -64,13 +64,14 @@ const init = async () => {
 
   let blockEventCallback = async block => {
     log.info(`${block.hash} (${block.number}) added to cache.`);
-    let filtered = await filterTxsByAccountsService(block.txs);
+    let filtered = await filterTxsByAccountsService(block.txs).catch(e=>console.log(e));
     await Promise.all(filtered.map(item =>
       channel.publish('events', `${config.rabbit.serviceName}_transaction.${item.address}`, new Buffer(JSON.stringify(Object.assign(item))))
     ));
   };
   let txEventCallback = async tx => {
-    let filtered = await filterTxsByAccountsService([tx]);
+    console.log(tx);
+    let filtered = await filterTxsByAccountsService([tx]).catch(e=>console.log(e));;
     await Promise.all(filtered.map(item => 
       channel.publish('events', `${config.rabbit.serviceName}_transaction.${item.address}`, new Buffer(JSON.stringify(Object.assign(item))))
     ));

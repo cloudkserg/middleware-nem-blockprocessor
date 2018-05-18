@@ -76,7 +76,7 @@ class blockWatchingService {
         }
 
         if (err && err.code === 0) {
-          log.info(`await for next block ${this.currentHeight + 1}`);
+          log.info(`await for next block ${this.currentHeight}`);
           await Promise.delay(10000);
           continue;
         }
