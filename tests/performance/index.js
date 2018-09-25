@@ -37,7 +37,7 @@ module.exports = (ctx) => {
     const memUsage = process.memoryUsage().heapUsed / 1024 / 1024;
     const syncCacheService = new SyncCacheService();
     await syncCacheService.start();
-    await new Promise(res => syncCacheService.once('end', res));
+    await new Promise(res => syncCacheService.events.once('end', res));
     global.gc();
     await Promise.delay(10000);
     const memUsage2 = process.memoryUsage().heapUsed / 1024 / 1024;
@@ -45,7 +45,7 @@ module.exports = (ctx) => {
     expect(memUsage2 - memUsage).to.be.below(3);
   });
 
-
+/*
   it('validate block watching service performance', async () => {
     const instance = await providerService.get();
     let blockNumber = await instance.getHeight();
@@ -156,7 +156,7 @@ module.exports = (ctx) => {
 
 
   });
-
+*/
 
 
 
