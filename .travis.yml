@@ -15,18 +15,13 @@ before_install:
   - sudo apt-get install python2.7 git-all pkg-config libncurses5-dev libssl-dev libnss3-dev libexpat-dev libc6-dev -y
 
 install:
+  - export PROVIDERS=http://bob.nem.ninja:7890@http://bob.nem.nimja:7778,http://192.3.61.243:7890@http://192.3.61.243:7778
   - sudo rabbitmq-plugins enable rabbitmq_web_stomp
   - npm install
   - npm install -g pm2
 
-before_script:
-    - echo PROVIDERS=http://localhost:8010@http://localhost:8011,http://localhost:8020@http://localhost:8021,http://192.3.61.243:7890@http://192.3.61.243:7778 >> .env
-    - sleep 10 && node $TRAVIS_BUILD_DIR/tests/proxy/server.js  8010 8011 --name 'proxy1' &
-    - sleep 10 && node $TRAVIS_BUILD_DIR/tests/proxy/server.js  8020 8021 --name 'proxy2' &
-    - sleep 30 && pm2 start index.js
-
 script:
-  - sleep 120 && npm test -- --coverage
+  - npm test -- --coverage
 
 after_script:
   - pm2 logs --nostream
